@@ -22,7 +22,7 @@ class Peer:
             print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
             self.gossips_received[message["host"] + ":" + str(message["port"])] = {
                 "host":message["host"],
-                "port": message["port"],
+                "port": int(message["port"]),
                 "name": message["name"]
             }
         elif message["type"] == "STATS_REPLY":
