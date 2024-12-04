@@ -24,6 +24,7 @@ def main():
 
         if len(my_peer.gossips_received) != 0:
             for g_key, (g_host, g_port, g_name) in my_peer.gossips_received.items():
+                print(type(g_port))
                 my_peer.send_stat(g_host, g_port, g_name)
         time.sleep(30)
         print(f"**STAT_MESSAGES**\n{my_peer.stats_received}\n***********\n")

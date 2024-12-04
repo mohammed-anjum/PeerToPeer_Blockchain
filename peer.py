@@ -25,9 +25,13 @@ class Peer:
                 "port": int(message["port"]),
                 "name": message["name"]
             }
+        #FIXME: message dont have host or port
         elif message["type"] == "STATS_REPLY":
             print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
-            self.gossips_received[message["host"] + ":" + str(message["port"])] = {
+            host, port = addr
+            self.gossips_received[host + ":" + str(port)] = {
+                "host": host,
+                "port": int(port),
                 "height": message["height"],
                 "hash": message["hash"]
             }
