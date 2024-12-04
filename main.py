@@ -4,7 +4,7 @@ import time
 
 def main():
     # Initialize the peer
-    my_peer = Peer("0.0.0.0", 8999, "My u-neek Peer")
+    my_peer = Peer("aviary.cs.umanitoba.ca", 8999, "MyPeerName")
 
     # Add known university peers
     my_peer.peers = [
@@ -14,11 +14,11 @@ def main():
     ]
 
     # Start listening in a separate thread
-    threading.Thread(target=my_peer.start_listening, daemon=True).start()
+    threading.Thread(target=my_peer.listen(), daemon=True).start()
 
     # Send gossip every 30 seconds
     while True:
-        my_peer.send_gossip()
+        my_peer.send_gossip(my_peer.peers[1][0], my_peer.peers[1][1])
         time.sleep(30)
 
 if __name__ == "__main__":
