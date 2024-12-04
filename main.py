@@ -21,7 +21,15 @@ def main():
     while True:
         my_peer.send_gossip(UNI_PEERS[1][0], UNI_PEERS[1][1])
         time.sleep(30)  # keep sending to maintain connection
-        print(f"**GOSSIP_REPLY**\n{my_peer.peers}")
+
+        if len(my_peer.gossips_received) != 0:
+            for g_key, (g_host, g_port, g_name) in my_peer.gossips_received.items():
+                my_peer.send_stat(g_host, g_port, g_name)
+        time.sleep(30)
+        print(f"**STAT_MESSAGES**\n{my_peer.stats_received}\n***********\n")
+
+
+
 
 
 if __name__ == "__main__":
