@@ -10,7 +10,7 @@ class Peer:
         self.name = name  # Unique name for this peer
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP socket
         self.socket.bind((self.host, self.port))  # Bind to the given host and port
-        self.peers = []
+        self.peers = set()
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
     def send_gossip(self, target_host, target_port):
@@ -41,5 +41,6 @@ class Peer:
             print(f"--GOSSIP--\n\t{addr}: {message}\n")
         elif message["type"] == "GOSSIP_REPLY":
             print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
+            self.peers.add(f"{message['host']}:{message['port']} -- {message['name']}")
         else:
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
