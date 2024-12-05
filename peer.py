@@ -36,12 +36,13 @@ class Peer:
             self.send_gossip_reply(host, port)
 
         elif msg_type == "GOSSIP_REPLY":
-            # print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
+            print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
             self.received_gossipers[f"{host}:{port}"] = {
                 "host": host,
                 "port": port,
                 "name": message.get("name", "")  # Use .get to avoid KeyError
             }
+            print(f"--ADDED_GOSSIPER--\n\t{addr}: {message}\n")
 
         elif msg_type == "STATS_REPLY":
             # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
