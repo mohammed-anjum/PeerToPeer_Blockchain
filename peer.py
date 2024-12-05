@@ -38,7 +38,7 @@ class Peer:
             self.received_stats[f"{host}:{port}"] = {
                 "host": host,
                 "port": port,
-                "height": int(message["height"]),
+                "height": int(message.get("height", 0)),
                 "hash": message["hash"]
             }
 
