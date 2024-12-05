@@ -1,5 +1,6 @@
 import socket
 import json
+from math import trunc
 
 
 class Peer:
@@ -13,6 +14,8 @@ class Peer:
         self.received_gossipers = {}
         self.received_stats = {}
         self.id = id
+        self.consensus_key = (-1, "")
+        self.block_request = set() # holds all height levels
         ### DO NOT REMOVE THIS PRINT
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
@@ -91,7 +94,7 @@ class Peer:
             "id": self.id,
             "name": self.name
         }
-        # for now i have defaulted to eagle only
+        # for now i have defaulted to silicon only
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (PROF_PEERS[0][0], PROF_PEERS[0][1]))
         ### DO NOT REMOVE THIS PRINT
@@ -167,17 +170,6 @@ class Peer:
 
             print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
 
-    # def add_stat(self, host, port, message):
-    #     print(f"--STATS_REPLY--\n\t{host}:{port} = {message}\n")
-    #     if stat_msg_valid(message):
-    #         self.received_stats[f"{host}:{port}"] = {
-    #             "host": host,
-    #             "port": port,
-    #             "height": int(message.get("height", "0")),
-    #             "hash": message["hash"]
-    #         }
-    #     print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
-
     ## debug method
     def check_stats(self):
         if len(self.received_stats) != 0:
@@ -189,24 +181,52 @@ class Peer:
     ## debug method
 # STAT -----------------------------------------------------------------------------------------------------------------
 
-# # CONSENSUS ------------------------------------------------------------------------------------------------------------
+# CONSENSUS ------------------------------------------------------------------------------------------------------------
     def do_consensus(self, received_stats):
         print("--DOING_CONSENSUS--")
         highest_key = max(received_stats.keys(), key=lambda the_key: the_key[0])
         print(f"--THE_CONSENSUS--\n\t{highest_key}:{received_stats[highest_key]}\n")
-        return highest_key
+        self.consensus_key = highest_key
+# CONSENSUS ------------------------------------------------------------------------------------------------------------
 
-#     def find_consensus(self, received_stats):
-#         # Create a dictionary to count occurrences of each (height, hash) pair
-#         counts = {}
-#         for peer, data in received_stats.items():
-#             key = (data["height"], data["hash"]) # tuple as a key
-#             counts[key] = counts.get(key, 0) + 1 # gets the curr count value and adds 1
-#
-#         # Find the most agreed-upon pair
-#         consensus = max(counts.items(), key=lambda x: x[1])  # x[1] is the count
-#         return consensus[0]  # Returns (height, hash)
-# # CONSENSUS ------------------------------------------------------------------------------------------------------------
+# BLOCK ----------------------------------------------------------------------------------------------------------------
+    def send_get_block(self, host, port, the_height):
+        msg = {
+            "type": "GET_BLOCK",
+            "height": the_height
+        }
+        data = json.dumps(msg).encode('utf-8')
+        self.socket.sendto(data, (host, port))
+        self.block_request.add(the_height)
+        print(f"--GET_BLOCK_SENT--\n\tfor the height {the_height}\n\tto {host}:{port}\n")
+        # TODO: DELETE BELOW
+        # temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # temp_socket.setblocking(False)
+        # temp_socket.sendto(data, (host, port))
+        # return temp_socket
+
+    # TODO
+    # def send_get_blocks(self):
+        # write loops here where you send send get block to everyone
+
+    # TODO: DELETE BELOW
+    # def get_blocks(self):
+    #     if self.consensus_key != (-1, ""):
+    #
+    #         height = self.consensus_key[0]
+    #         last_block_hash = self.consensus_key[1]
+    #         host_port_set = self.received_stats[self.consensus_key]
+    #
+    #         found_blocks = set()
+    #
+    #         while len(found_blocks) < height:
+    #             socket_array = []
+    #             for host, port in host_port_set:
+    #                 for block_height in range(height):
+    #                     block_socket = self.send_get_block(host, port, block_height)
+    #                     socket_array.append((block_socket, block_height))
+
+# BLOCK ----------------------------------------------------------------------------------------------------------------
 
 def validate_msg(addr, msg):
     try:
