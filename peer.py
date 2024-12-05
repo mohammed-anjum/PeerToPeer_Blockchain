@@ -111,11 +111,11 @@ class Peer:
 
     def send_stat(self, target_host, target_port, target_name):
         """Send a stats msg."""
-        #print(f"SENDING STAT to {target_name}")
+        # print(f"SENDING STAT to {target_name}")
         msg = {"type": "STATS"}
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        #print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
+        print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
     def send_stat_reply(self, target_host, target_port):
         msg = {
