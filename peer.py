@@ -21,7 +21,7 @@ class Peer:
 
     def handle_message(self, addr, message):
         """Handle received messages."""
-        host, port, msg_type, message = parse_and_validate(addr, message)
+        host, port, msg_type, message = validate_msg(addr, message)
 
         if msg_type == "GOSSIP":
             # print(f"--GOSSIP--\n\t{addr}: {message}\n")
@@ -37,12 +37,15 @@ class Peer:
 
         elif msg_type == "STATS_REPLY":
             # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
-            self.received_stats[f"{host}:{port}"] = {
-                "host": host,
-                "port": port,
-                "height": int(message.get("height", 0)),
-                "hash": message["hash"]
-            }
+            if stat_msg_valid(message):
+                self.received_stats[f"{host}:{port}"] = {
+                    "host": host,
+                    "port": port,
+                    "height": int(message.get("height", "0")),
+                    "hash": message["hash"]
+                }
+        elif msg_type == "STATS":
+            pass
 
         else:
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
@@ -85,7 +88,7 @@ class Peer:
             self.handle_message(addr, message)
 
 
-def parse_and_validate(addr, message):
+def validate_msg(addr, message):
     try:
         # Validate address
         if not isinstance(addr, tuple) or len(addr) != 2:
@@ -108,3 +111,12 @@ def parse_and_validate(addr, message):
     except ValueError as e:
         print(f"Validation Error: {e}")
         raise
+
+def stat_msg_valid(message):
+    try:
+        if "height" not in message or "hash" not in message:
+            return False
+        int(message["height"])
+        return True
+    except (ValueError, TypeError):
+        return False
