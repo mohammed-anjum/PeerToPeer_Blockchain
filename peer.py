@@ -36,16 +36,16 @@ class Peer:
             self.send_gossip_reply(host, port)
 
         elif msg_type == "GOSSIP_REPLY":
-            print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
+            #print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
             self.received_gossipers[f"{host}:{port}"] = {
                 "host": host,
                 "port": port,
                 "name": message.get("name", "")  # Use .get to avoid KeyError
             }
-            print(f"--ADDED_GOSSIPER--\n\t{addr}: {message}\n")
+            #print(f"--ADDED_GOSSIPER--\n\t{addr}: {message}\n")
 
         elif msg_type == "STATS_REPLY":
-            # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
+            #print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
             if stat_msg_valid(message):
                 self.received_stats[f"{host}:{port}"] = {
                     "host": host,
@@ -57,6 +57,7 @@ class Peer:
             pass
 
         else:
+            ### DO NOT REMOVE THIS PRINT
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
 
     def send_gossip(self):
@@ -71,15 +72,14 @@ class Peer:
         ]
 
         # for now i have defaulted to eagle only
-        print(f"SENDING GOSSIP to {UNI_PEERS[1][0]}:{UNI_PEERS[1][1]}")
-
         data = json.dumps(self.GOSSIP_MSG).encode('utf-8')
         self.socket.sendto(data, (UNI_PEERS[1][0], UNI_PEERS[1][1]))
+        ### DO NOT REMOVE THIS PRINT
         print(f"--GOSSIP_SENT--\n\tto {UNI_PEERS[1][0]}:{UNI_PEERS[1][1]}\n")
 
     def send_gossip_reply(self, target_host, target_port):
         """Send a gossip reply to FROM peer"""
-        print(f"SENDING GOSSIP_REPLY to {target_host}:{target_port}")
+        # print(f"SENDING GOSSIP_REPLY to {target_host}:{target_port}")
         msg = {
             "type": "GOSSIP_REPLY",
             "host": self.host,
@@ -88,7 +88,7 @@ class Peer:
         }
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        print(f"--GOSSIP_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
+        #print(f"--GOSSIP_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
 
     def send_stats(self, target_list):
         if len(target_list) != 0:
@@ -97,11 +97,21 @@ class Peer:
 
     def send_stat(self, target_host, target_port, target_name):
         """Send a stats msg."""
-        # print(f"SENDING STAT to {target_name}")
+        #print(f"SENDING STAT to {target_name}")
         msg = {"type": "STATS"}
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        # print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
+        #print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
+
+    ## debug method
+    def check_gossipers(self):
+        if len(self.received_gossipers) != 0:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_GOSSIPERS--\n\t{self.received_gossipers}")
+        else:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_GOSSIPERS--\n\t NO ONE")
+    ## debug method
 
     def listen(self):
         """Listen for incoming msgs."""
@@ -109,7 +119,7 @@ class Peer:
         print("Listening for incoming messages...")
         while True:
             data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
-            # print(f"--LISTENING--\n\t{addr}: {data}\n")
+            #print(f"--LISTENING--\n\t{addr}: {data}\n")
             msg = json.loads(data.decode('utf-8'))
             self.handle_msg(addr, msg)
 
@@ -135,6 +145,7 @@ def validate_msg(addr, msg):
         return host, port, msg_type, msg
 
     except ValueError as e:
+        ### DO NOT REMOVE THIS PRINT
         print(f"Validation Error: {e}")
         raise
 

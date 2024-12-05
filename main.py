@@ -11,14 +11,19 @@ def main():
     # Start listening in a separate thread
     threading.Thread(target=my_peer.listen, daemon=True).start()
 
+    ###
     event_q.add_event(time.time() + 1, my_peer.send_gossip, None, 30)
     # event_q.add_event(time.time() + 20, my_peer.send_stats, [my_peer.received_gossipers], 30)
+    #debug check
+    event_q.add_event(time.time() + 33, my_peer.check_gossipers, None, 30)
+    # debug check
+    ###
 
     while True:
         event_q.run()
 
-        if len(my_peer.received_gossipers) != 0:
-            print(f"**GOSSIPERS**\n{my_peer.received_gossipers}\n***********\n")
+        # if len(my_peer.received_gossipers) != 0:
+        #     print(f"**GOSSIPERS**\n{my_peer.received_gossipers}\n***********\n")
 
 if __name__ == "__main__":
     main()
