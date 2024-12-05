@@ -12,6 +12,7 @@ class Peer:
         self.socket.bind((self.host, self.port))
         self.received_gossipers = {}
         self.received_stats = {}
+        ### DO NOT REMOVE THIS PRINT
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
     def get_local_ip(self):
@@ -23,10 +24,11 @@ class Peer:
         host, port, msg_type, message = parse_and_validate(addr, message)
 
         if msg_type == "GOSSIP":
-            print(f"--GOSSIP--\n\t{addr}: {message}\n")
+            # print(f"--GOSSIP--\n\t{addr}: {message}\n")
+            pass
 
         elif msg_type == "GOSSIP_REPLY":
-            print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
+            # print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
             self.received_gossipers[f"{host}:{port}"] = {
                 "host": host,
                 "port": port,
@@ -34,7 +36,7 @@ class Peer:
             }
 
         elif msg_type == "STATS_REPLY":
-            print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
+            # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
             self.received_stats[f"{host}:{port}"] = {
                 "host": host,
                 "port": port,
@@ -47,7 +49,7 @@ class Peer:
 
     def send_gossip(self, target_host, target_port):
         """Send a simple gossip message."""
-        print(f"SENDING GOSSIP to {target_host}:{target_port}")
+        # print(f"SENDING GOSSIP to {target_host}:{target_port}")
         message = {
             "type": "GOSSIP",
             "host": self.host,
@@ -57,7 +59,7 @@ class Peer:
         }
         data = json.dumps(message).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        print(f"--GOSSIP_SENT--\n\tto {target_host}:{target_port}\n")
+        # print(f"--GOSSIP_SENT--\n\tto {target_host}:{target_port}\n")
 
     def send_stats(self, target_list):
         if len(target_list) != 0:
@@ -66,14 +68,15 @@ class Peer:
 
     def send_stat(self, target_host, target_port, target_name):
         """Send a stats message."""
-        print(f"SENDING STAT to {target_name}")
+        # print(f"SENDING STAT to {target_name}")
         message = {"type": "STATS"}
         data = json.dumps(message).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
+        # print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
     def listen(self):
         """Listen for incoming messages."""
+        ### DO NOT REMOVE THIS PRINT
         print("Listening for incoming messages...")
         while True:
             data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
