@@ -10,8 +10,8 @@ class Peer:
         self.name = name
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.host, self.port))
-        self.gossips_received = {}
-        self.stats_received = {}
+        self.received_gossipers = {}
+        self.received_stats = {}
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
     def get_local_ip(self):
