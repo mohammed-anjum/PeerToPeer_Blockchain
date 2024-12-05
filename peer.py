@@ -143,7 +143,7 @@ class Peer:
     def check_stats(self):
         if len(self.received_stats) != 0:
             ### DO NOT REMOVE THIS PRINT
-            print(f"--MY_STATS--\n\t{self.received_gossipers}")
+            print(f"--MY_STATS--\n\t{self.received_stats}")
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_STATS--\n\t NONE")
