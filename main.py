@@ -14,15 +14,14 @@ def main():
 
     ###
     event_q.add_event(time.time() + 1, my_peer.send_gossip, None, 30)  # send_gossip
-    # event_q.add_event(time.time() + 33, my_peer.check_gossipers, None, 30) #debug
-    event_q.add_event(time.time() + 20, my_peer.send_stats, [my_peer.received_gossipers], 30)  # send_stat
-    event_q.add_event(time.time() + 53, my_peer.check_stats, None, 30)  # send_stat
-
+    # event_q.add_event(time.time() + 33, my_peer.check_gossipers, None, 30) # debug
+    event_q.add_event(time.time() + 11, my_peer.send_stats, [my_peer.received_gossipers], 20)  # send_stat
+    event_q.add_event(time.time() + 40, my_peer.check_stats, None, 20)  # debug ~ 32 it should be ready
+    event_q.add_event(time.time() + 45, my_peer.do_consensus, [my_peer.received_stats], 20)
     ###
 
     while True:
         event_q.run()
-
 
 if __name__ == "__main__":
     main()

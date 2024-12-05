@@ -20,19 +20,42 @@ class Peer:
         hostname = socket.gethostname()
         return socket.gethostbyname(hostname)
 
+    # def listen(self):
+    #     """Listen for incoming msgs."""
+    #     ### DO NOT REMOVE THIS PRINT
+    #     print("Listening for incoming messages...")
+    #     while True:
+    #         data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
+    #         if data:
+    #             print(f"--LISTENING--\n\t{addr}: {data}\n")
+    #             msg = json.loads(data.decode('utf-8'))
+    #             self.handle_msg(addr, msg)
+    #         else:
+    #             print(f"--LISTENING--\n\t{addr}: \n\t\tNO DATA\n")
+    #             pass
+
     def listen(self):
         """Listen for incoming msgs."""
-        ### DO NOT REMOVE THIS PRINT
         print("Listening for incoming messages...")
         while True:
-            data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
-            if data:
-                # print(f"--LISTENING--\n\t{addr}: {data}\n")
-                msg = json.loads(data.decode('utf-8'))
-                self.handle_msg(addr, msg)
-            else:
-                # print(f"--LISTENING--\n\t{addr}: \n\t\tNO DATA\n")
-                pass
+            try:
+                data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
+
+                if data:
+                    # print(f"--LISTENING--\n\t{addr}: {data}\n")
+
+                    # Attempt to decode JSON only if data is non-empty
+                    try:
+                        msg = json.loads(data.decode('utf-8'))  # Decode JSON
+                        self.handle_msg(addr, msg)  # Process the message
+                    except json.JSONDecodeError as e:
+                        print(f"Invalid JSON received from {addr}: {data}. Error: {e}")
+
+                else:
+                    print(f"--LISTENING--\n\t{addr}: \n\t\tNO DATA\n")
+
+            except Exception as e:
+                print(f"Error while receiving data: {e}")
 
     def handle_msg(self, addr, msg):
         """Handle received msgs."""
@@ -43,13 +66,13 @@ class Peer:
         elif msg_type == "GOSSIP_REPLY":
             self.add_gossiper(host, port, message)
         elif msg_type == "STATS_REPLY":
-            self.add_stat()
+            print("\n!!! We got a STATS_REPLY !!!\n")
+            self.add_stat(host, port, message)
         elif msg_type == "STATS":
             self.send_stat_reply(host, port)
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
-
 
 # GOSSIP ---------------------------------------------------------------------------------------------------------------
     def send_gossip(self):
@@ -70,9 +93,9 @@ class Peer:
         }
         # for now i have defaulted to eagle only
         data = json.dumps(msg).encode('utf-8')
-        self.socket.sendto(data, (PROF_PEERS[1][0], PROF_PEERS[1][1]))
+        self.socket.sendto(data, (PROF_PEERS[0][0], PROF_PEERS[0][1]))
         ### DO NOT REMOVE THIS PRINT
-        print(f"--GOSSIP_SENT--\n\tto {PROF_PEERS[1][0]}:{PROF_PEERS[1][1]}\n")
+        print(f"--GOSSIP_SENT--\n\tto {PROF_PEERS[0][0]}:{PROF_PEERS[0][1]}\n")
 
     def send_gossip_reply(self, target_host, target_port):
         """Send a gossip reply to FROM peer"""
@@ -119,7 +142,7 @@ class Peer:
         msg = {"type": "STATS"}
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
+        # print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
     def send_stat_reply(self, target_host, target_port):
         msg = {
@@ -132,17 +155,29 @@ class Peer:
         self.socket.sendto(data, (target_host, target_port))
         # print(f"--STATS_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
 
-
     def add_stat(self, host, port, message):
-        print(f"--STATS_REPLY--\n\t{host}:{port} = {message}\n")
         if stat_msg_valid(message):
-            self.received_stats[f"{host}:{port}"] = {
-                "host": host,
-                "port": port,
-                "height": int(message.get("height", "0")),
-                "hash": message["hash"]
-            }
-        print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
+            height = int(message.get("height", "0"))
+            blk_hash = message.get("hash", "")
+            the_key = (blk_hash, height)
+
+            if the_key not in self.received_stats:
+                self.received_stats[the_key] = set()
+            self.received_stats[the_key].add((host, port))
+
+            print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
+
+    # def add_stat(self, host, port, message):
+    #     print(f"--STATS_REPLY--\n\t{host}:{port} = {message}\n")
+    #     if stat_msg_valid(message):
+    #         self.received_stats[f"{host}:{port}"] = {
+    #             "host": host,
+    #             "port": port,
+    #             "height": int(message.get("height", "0")),
+    #             "hash": message["hash"]
+    #         }
+    #     print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
+
     ## debug method
     def check_stats(self):
         if len(self.received_stats) != 0:
@@ -153,6 +188,25 @@ class Peer:
             print(f"--MY_STATS--\n\t NONE")
     ## debug method
 # STAT -----------------------------------------------------------------------------------------------------------------
+
+# # CONSENSUS ------------------------------------------------------------------------------------------------------------
+    def do_consensus(self, received_stats):
+        print("--DOING_CONSENSUS--")
+        highest_key = max(received_stats.keys(), key=lambda the_key: the_key[0])
+        print(f"--THE_CONSENSUS--\n\t{highest_key}:{received_stats[highest_key]}\n")
+        return highest_key
+
+#     def find_consensus(self, received_stats):
+#         # Create a dictionary to count occurrences of each (height, hash) pair
+#         counts = {}
+#         for peer, data in received_stats.items():
+#             key = (data["height"], data["hash"]) # tuple as a key
+#             counts[key] = counts.get(key, 0) + 1 # gets the curr count value and adds 1
+#
+#         # Find the most agreed-upon pair
+#         consensus = max(counts.items(), key=lambda x: x[1])  # x[1] is the count
+#         return consensus[0]  # Returns (height, hash)
+# # CONSENSUS ------------------------------------------------------------------------------------------------------------
 
 def validate_msg(addr, msg):
     try:
@@ -188,6 +242,25 @@ def stat_msg_valid(msg):
         return True
     except (ValueError, TypeError):
         return False
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 """
