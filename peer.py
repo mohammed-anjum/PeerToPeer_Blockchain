@@ -1,10 +1,9 @@
 import socket
 import json
-import uuid
 
 
 class Peer:
-    def __init__(self, port, name):
+    def __init__(self, port, name, id):
         # Automatically pick up the current IP
         self.host = self.get_local_ip()
         self.port = port
@@ -13,14 +12,7 @@ class Peer:
         self.socket.bind((self.host, self.port))
         self.received_gossipers = {}
         self.received_stats = {}
-        self.uni_peer = [] # we will implement this later
-        self.GOSSIP_MSG = {
-            "type": "GOSSIP",
-            "host": self.host,
-            "port": self.port,
-            "id": str(uuid.uuid4()),
-            "name": self.name
-        }
+        self.id = id
         ### DO NOT REMOVE THIS PRINT
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
@@ -28,54 +20,55 @@ class Peer:
         hostname = socket.gethostname()
         return socket.gethostbyname(hostname)
 
+    def listen(self):
+        """Listen for incoming msgs."""
+        ### DO NOT REMOVE THIS PRINT
+        print("Listening for incoming messages...")
+        while True:
+            data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
+            #print(f"--LISTENING--\n\t{addr}: {data}\n")
+            msg = json.loads(data.decode('utf-8'))
+            self.handle_msg(addr, msg)
+
     def handle_msg(self, addr, msg):
         """Handle received msgs."""
         host, port, msg_type, message = validate_msg(addr, msg)
 
         if msg_type == "GOSSIP":
             self.send_gossip_reply(host, port)
-
         elif msg_type == "GOSSIP_REPLY":
-            #print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
-            self.received_gossipers[f"{host}:{port}"] = {
-                "host": host,
-                "port": port,
-                "name": message.get("name", "")  # Use .get to avoid KeyError
-            }
-            #print(f"--ADDED_GOSSIPER--\n\t{addr}: {message}\n")
-
+            self.add_gossiper(host, port, message)
         elif msg_type == "STATS_REPLY":
-            #print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
-            if stat_msg_valid(message):
-                self.received_stats[f"{host}:{port}"] = {
-                    "host": host,
-                    "port": port,
-                    "height": int(message.get("height", "0")),
-                    "hash": message["hash"]
-                }
+            self.add_stat()
         elif msg_type == "STATS":
-            pass
-
+            self.send_stat_reply(host, port)
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
 
-    def send_gossip(self):
-        """Send a simple gossip msg TO UNI PEERS"""
 
-        UNI_PEERS = [
+# GOSSIP ---------------------------------------------------------------------------------------------------------------
+    def send_gossip(self):
+        """Send a simple gossip msg TO PROF PEERS"""
+        PROF_PEERS = [
             ["silicon.cs.umanitoba.ca", 8999],  # website is down
             ["eagle.cs.umanitoba.ca", 8999],
             ["hawk.cs.umanitoba.ca", 8999],
             ["grebe.cs.umanitoba.ca", 8999],
             ["goose.cs.umanitoba.ca", 8999]
         ]
-
+        msg = {
+            "type": "GOSSIP",
+            "host": self.host,
+            "port": self.port,
+            "id": self.id,
+            "name": self.name
+        }
         # for now i have defaulted to eagle only
-        data = json.dumps(self.GOSSIP_MSG).encode('utf-8')
-        self.socket.sendto(data, (UNI_PEERS[1][0], UNI_PEERS[1][1]))
+        data = json.dumps(msg).encode('utf-8')
+        self.socket.sendto(data, (PROF_PEERS[1][0], PROF_PEERS[1][1]))
         ### DO NOT REMOVE THIS PRINT
-        print(f"--GOSSIP_SENT--\n\tto {UNI_PEERS[1][0]}:{UNI_PEERS[1][1]}\n")
+        print(f"--GOSSIP_SENT--\n\tto {PROF_PEERS[1][0]}:{PROF_PEERS[1][1]}\n")
 
     def send_gossip_reply(self, target_host, target_port):
         """Send a gossip reply to FROM peer"""
@@ -90,6 +83,27 @@ class Peer:
         self.socket.sendto(data, (target_host, target_port))
         #print(f"--GOSSIP_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
 
+    def add_gossiper(self, host, port, message):
+        # print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
+        self.received_gossipers[f"{host}:{port}"] = {
+            "host": host,
+            "port": port,
+            "name": message.get("name", "")  # Use .get to avoid KeyError
+        }
+        # print(f"--ADDED_GOSSIPER--\n\t{addr}: {message}\n")
+
+    ## debug method
+    def check_gossipers(self):
+        if len(self.received_gossipers) != 0:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_GOSSIPERS--\n\t{self.received_gossipers}")
+        else:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_GOSSIPERS--\n\t NO ONE")
+    ## debug method
+# GOSSIP ---------------------------------------------------------------------------------------------------------------
+
+# STAT -----------------------------------------------------------------------------------------------------------------
     def send_stats(self, target_list):
         if len(target_list) != 0:
             for key, gossiper in target_list.items():
@@ -103,26 +117,38 @@ class Peer:
         self.socket.sendto(data, (target_host, target_port))
         #print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
+    def send_stat_reply(self, target_host, target_port):
+        msg = {
+                "host": self.host,
+                "port": self.port,
+                "height": -1,
+                "hash": ""
+            }
+        data = json.dumps(msg).encode('utf-8')
+        self.socket.sendto(data, (target_host, target_port))
+        # print(f"--STATS_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
+
+
+    def add_stat(self, host, port, message):
+        # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
+        if stat_msg_valid(message):
+            self.received_stats[f"{host}:{port}"] = {
+                "host": host,
+                "port": port,
+                "height": int(message.get("height", "0")),
+                "hash": message["hash"]
+            }
+        # print(f"--ADDED_STAT--\n\t{addr}: {message}\n")
     ## debug method
-    def check_gossipers(self):
-        if len(self.received_gossipers) != 0:
+    def check_stats(self):
+        if len(self.received_stats) != 0:
             ### DO NOT REMOVE THIS PRINT
-            print(f"--MY_GOSSIPERS--\n\t{self.received_gossipers}")
+            print(f"--MY_STATS--\n\t{self.received_gossipers}")
         else:
             ### DO NOT REMOVE THIS PRINT
-            print(f"--MY_GOSSIPERS--\n\t NO ONE")
+            print(f"--MY_STATS--\n\t NONE")
     ## debug method
-
-    def listen(self):
-        """Listen for incoming msgs."""
-        ### DO NOT REMOVE THIS PRINT
-        print("Listening for incoming messages...")
-        while True:
-            data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
-            #print(f"--LISTENING--\n\t{addr}: {data}\n")
-            msg = json.loads(data.decode('utf-8'))
-            self.handle_msg(addr, msg)
-
+# STAT -----------------------------------------------------------------------------------------------------------------
 
 def validate_msg(addr, msg):
     try:
@@ -173,6 +199,8 @@ for each host, port in known_hosts:
 
 if all attempts failed:
     handle the failure case
+    
+add this to peer obj `self.uni_peer = [] # we will implement this later`
 
 also create a peer field to keep track of the successful one and then use that as priority
 """
