@@ -77,7 +77,7 @@ class Peer:
         print("Listening for incoming messages...")
         while True:
             data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
-            print(f"--LISTENING--\n\t{addr}: {data}\n")
+            # print(f"--LISTENING--\n\t{addr}: {data}\n")
             message = json.loads(data.decode('utf-8'))
             self.handle_message(addr, message)
 

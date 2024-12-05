@@ -20,7 +20,7 @@ def main():
 
     while True:
         event_q.add_event(time.time()+1, my_peer.send_gossip, UNI_PEERS[1], 30)
-        event_q.add_event(time.time()+20, my_peer.send_stats, my_peer.received_gossipers, 30)
+        event_q.add_event(time.time()+20, my_peer.send_stats, [my_peer.received_gossipers], 30)
 
         event_q.run()
 
