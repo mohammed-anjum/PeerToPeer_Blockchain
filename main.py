@@ -21,7 +21,11 @@ def main():
     while True:
         event_q.add_event(time.time()+1, my_peer.send_gossip, UNI_PEERS[1], 30)
         event_q.add_event(time.time()+20, my_peer.send_stats, my_peer.received_gossipers, 30)
-        print(f"**STAT_MESSAGES**\n{my_peer.received_stats}\n***********\n")
+
+        event_q.run()
+
+        if len(my_peer.received_stats) != 0:
+            print(f"**STAT_MESSAGES**\n{my_peer.received_stats}\n***********\n")
 
 if __name__ == "__main__":
     main()
