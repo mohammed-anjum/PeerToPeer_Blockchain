@@ -26,9 +26,13 @@ class Peer:
         print("Listening for incoming messages...")
         while True:
             data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
-            #print(f"--LISTENING--\n\t{addr}: {data}\n")
-            msg = json.loads(data.decode('utf-8'))
-            self.handle_msg(addr, msg)
+            if data:
+                # print(f"--LISTENING--\n\t{addr}: {data}\n")
+                msg = json.loads(data.decode('utf-8'))
+                self.handle_msg(addr, msg)
+            else:
+                # print(f"--LISTENING--\n\t{addr}: \n\t\tNO DATA\n")
+                pass
 
     def handle_msg(self, addr, msg):
         """Handle received msgs."""
@@ -130,7 +134,7 @@ class Peer:
 
 
     def add_stat(self, host, port, message):
-        # print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
+        print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
         if stat_msg_valid(message):
             self.received_stats[f"{host}:{port}"] = {
                 "host": host,
@@ -138,7 +142,7 @@ class Peer:
                 "height": int(message.get("height", "0")),
                 "hash": message["hash"]
             }
-        # print(f"--ADDED_STAT--\n\t{addr}: {message}\n")
+        print(f"--ADDED_STAT--\n\t{addr}: {message}\n")
     ## debug method
     def check_stats(self):
         if len(self.received_stats) != 0:
