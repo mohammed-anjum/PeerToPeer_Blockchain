@@ -19,9 +19,9 @@ class Peer:
         hostname = socket.gethostname()
         return socket.gethostbyname(hostname)
 
-    def handle_message(self, addr, message):
-        """Handle received messages."""
-        host, port, msg_type, message = validate_msg(addr, message)
+    def handle_msg(self, addr, msg):
+        """Handle received msgs."""
+        host, port, msg_type, message = validate_msg(addr, msg)
 
         if msg_type == "GOSSIP":
             # print(f"--GOSSIP--\n\t{addr}: {message}\n")
@@ -51,16 +51,16 @@ class Peer:
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
 
     def send_gossip(self, target_host, target_port):
-        """Send a simple gossip message."""
+        """Send a simple gossip msg."""
         # print(f"SENDING GOSSIP to {target_host}:{target_port}")
-        message = {
+        msg = {
             "type": "GOSSIP",
             "host": self.host,
             "port": self.port,
             "id": str(uuid.uuid4()),
             "name": self.name
         }
-        data = json.dumps(message).encode('utf-8')
+        data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
         # print(f"--GOSSIP_SENT--\n\tto {target_host}:{target_port}\n")
 
@@ -70,25 +70,25 @@ class Peer:
                 self.send_stat(gossiper['host'], gossiper['port'], gossiper['name'])
 
     def send_stat(self, target_host, target_port, target_name):
-        """Send a stats message."""
+        """Send a stats msg."""
         # print(f"SENDING STAT to {target_name}")
-        message = {"type": "STATS"}
-        data = json.dumps(message).encode('utf-8')
+        msg = {"type": "STATS"}
+        data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
         # print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
     def listen(self):
-        """Listen for incoming messages."""
+        """Listen for incoming msgs."""
         ### DO NOT REMOVE THIS PRINT
         print("Listening for incoming messages...")
         while True:
             data, addr = self.socket.recvfrom(1024)  # Receive data and sender address
             # print(f"--LISTENING--\n\t{addr}: {data}\n")
-            message = json.loads(data.decode('utf-8'))
-            self.handle_message(addr, message)
+            msg = json.loads(data.decode('utf-8'))
+            self.handle_msg(addr, msg)
 
 
-def validate_msg(addr, message):
+def validate_msg(addr, msg):
     try:
         # Validate address
         if not isinstance(addr, tuple) or len(addr) != 2:
@@ -100,23 +100,23 @@ def validate_msg(addr, message):
             raise ValueError(f"Invalid port type: {port} (expected int)")
 
         # Validate message
-        if not isinstance(message, dict):
-            raise ValueError(f"Invalid message type: {type(message)} (expected dict)")
-        if "type" not in message or not isinstance(message["type"], str):
-            raise ValueError(f"Invalid or missing 'type' in message: {message}")
-        msg_type = message["type"]
+        if not isinstance(msg, dict):
+            raise ValueError(f"Invalid message type: {type(msg)} (expected dict)")
+        if "type" not in msg or not isinstance(msg["type"], str):
+            raise ValueError(f"Invalid or missing 'type' in message: {msg}")
+        msg_type = msg["type"]
 
-        return host, port, msg_type, message
+        return host, port, msg_type, msg
 
     except ValueError as e:
         print(f"Validation Error: {e}")
         raise
 
-def stat_msg_valid(message):
+def stat_msg_valid(msg):
     try:
-        if "height" not in message or "hash" not in message:
+        if "height" not in msg or "hash" not in msg:
             return False
-        int(message["height"])
+        int(msg["height"])
         return True
     except (ValueError, TypeError):
         return False
