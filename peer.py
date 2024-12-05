@@ -159,7 +159,7 @@ class Peer:
         if stat_msg_valid(message):
             height = int(message.get("height", "0"))
             blk_hash = message.get("hash", "")
-            the_key = (blk_hash, height)
+            the_key = (height, blk_hash)
 
             if the_key not in self.received_stats:
                 self.received_stats[the_key] = set()
