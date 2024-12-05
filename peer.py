@@ -134,7 +134,7 @@ class Peer:
 
 
     def add_stat(self, host, port, message):
-        print(f"--STATS_REPLY--\n\t{addr}: {message}\n")
+        print(f"--STATS_REPLY--\n\t{host}:{port} = {message}\n")
         if stat_msg_valid(message):
             self.received_stats[f"{host}:{port}"] = {
                 "host": host,
@@ -142,7 +142,7 @@ class Peer:
                 "height": int(message.get("height", "0")),
                 "hash": message["hash"]
             }
-        print(f"--ADDED_STAT--\n\t{addr}: {message}\n")
+        print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
     ## debug method
     def check_stats(self):
         if len(self.received_stats) != 0:
