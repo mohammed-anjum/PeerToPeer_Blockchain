@@ -1,8 +1,6 @@
 import hashlib
 import socket
 import json
-from linecache import cache
-from math import trunc
 
 
 class Peer:
@@ -258,18 +256,18 @@ class Peer:
 
     # listening for GET_BLOCK_REPLY
     def add_block(self, host, port, message):
-        print(f"--GET_BLOCK_REPLY--\n\tfrom: {host}:{port}")
+        # print(f"--GET_BLOCK_REPLY--\n\tfrom: {host}:{port}")
         height_key = message["height"]
-        print(f"\t\tfor height{height_key}")
+        # print(f"\t\tfor height{height_key}")
         if height_key not in self.block_tracker:
-            print(f"\t\t\t{height_key} not in self.block_tracker")
+            # print(f"\t\t\t{height_key} not in self.block_tracker")
             self.block_tracker[height_key] = set()
-            print(f"\t\t\t\t{height_key} > set made")
+            # print(f"\t\t\t\t{height_key} > set made")
         # {height_key: (json1, json2 ...)}
         # here might be the error ChatGPT, what do i do? Do sets not like json messages?
-        # self.block_tracker[height_key].add(message)
+        # DNU self.block_tracker[height_key].add(message)
         self.block_tracker[height_key].add(json.dumps(message, sort_keys=True))
-        print(f" === Added block_json: {height_key}:{message}")
+        # print(f" === Added block_json: {height_key}:{message}")
 
     ## debug method
     def check_block_tracker(self):

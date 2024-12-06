@@ -19,6 +19,7 @@ def main():
     # event_q.add_event(time.time() + 40, my_peer.check_stats, None, 20)  # debug ~ 32 it should be ready
     event_q.add_event(time.time() + 45, my_peer.do_consensus, [my_peer.received_stats], 20)
     event_q.add_event(time.time() + 66, my_peer.send_get_blocks, None, 10)
+    event_q.add_event(time.time() + 70, my_peer.check_block_tracker, None, 15) # debug
     ###
 
     while True:
