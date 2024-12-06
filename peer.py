@@ -225,7 +225,7 @@ class Peer:
     def do_consensus(self, received_stats):
         print("--DOING_CONSENSUS--")
         highest_key = max(received_stats.keys(), key=lambda the_key: the_key[0])
-        print(f"--THE_CONSENSUS--\n\t{highest_key}:{received_stats[highest_key]}\n")
+        print(f"\t--THE_CONSENSUS--\n\t\t{highest_key}:{received_stats[highest_key]}\n")
         self.consensus_key = highest_key
 
     # CONSENSUS ------------------------------------------------------------------------------------------------------------
@@ -313,16 +313,18 @@ class Peer:
                         json_block = json.loads(serialized_json_block)
                         if verification(prev_json_block_hash, json_block, 8):
                             self.verified_blocks[height_key] = json_block
-                            print(f"--VERIFIED_BLOCK--\n\t{self.verified_blocks[height_key]}")
+                            print(f"\t\t\t--VERIFIED_BLOCK--\n\t{height_key}")
                             break
                 else:
-                    print("i aint got the prev chief")
+                    # print("i aint got the prev chief")
+                    pass
 
     ## debug method
     def check_verified_blocks(self):
         if len(self.verified_blocks) != 0:
             ### DO NOT REMOVE THIS PRINT
-            print(f"--MY_BLOCK_CHAIN--\n\t{self.verified_blocks}")
+            # print(f"--MY_BLOCK_CHAIN--\n\t{self.verified_blocks}")
+            print(f"--MY_BLOCK_CHAIN--\n\t\t{len(self.verified_blocks)} ? {self.consensus_key[0]}")
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_BLOCK_CHAIN--\n\t NONE")
@@ -384,7 +386,7 @@ def verification(previous_hash, current_block_json, difficulty=8):
             print(f"--HASH_NO_MATCH--\n\t{calculated_hash} != {current_block_json['hash']}")
             return False
 
-        print(f"--HASH_OK--\n\t{calculated_hash}")
+        print(f"\t--YOUVE BEEN VERIFIED--\n\t\t{calculated_hash}")
         return True
 
     except KeyError as e:
