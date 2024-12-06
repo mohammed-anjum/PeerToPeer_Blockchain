@@ -112,7 +112,8 @@ class Peer:
             self.add_block(host, port, message)
         else:
             ### DO NOT REMOVE THIS PRINT
-            print(f"--UNKNOWN--\n\t{addr}: {message}\n")
+            # print(f"--UNKNOWN--\n\t{addr}: {message}\n")
+            pass
 
 # GOSSIP ---------------------------------------------------------------------------------------------------------------
     def send_gossip(self):
@@ -262,7 +263,7 @@ class Peer:
         if height_key not in self.block_tracker:
             # print(f"\t\t\t{height_key} not in self.block_tracker")
             self.block_tracker[height_key] = set()
-            # print(f"\t\t\t\t{height_key} > set made")
+            # print(f"\t\t\t\t{height_key} > set made see {type(self.block_tracker[height_key])}")
         # {height_key: (json1, json2 ...)}
         # here might be the error ChatGPT, what do i do? Do sets not like json messages?
         # DNU self.block_tracker[height_key].add(message)
@@ -279,42 +280,85 @@ class Peer:
             print(f"--MY_BLOCK_TRACKER--\n\t NONE")
     ## debug method
 
-
+    """
+        block_tracker = the below will have the following format of the dict
+        {   0: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
+            1: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
+            ...}
+        once any json in value set is verified we keep that one
+        and remove the rest
+        and then sql it. think
+    """
     def verify_block(self):
-        """
-            block_tracker = the below will have the following format of the dict
-            {   0: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
-                1: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
-                ...}
-            once any json in value set is verified we keep that one
-            and remove the rest
-            and then sql it. think
-        """
+        print("I AM NOW VERIFYING")
         for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
             if height_key == 0:
-                """ GENESIS BLOCK ~ we'll assume Rob is a good internet friend and just keep the 0 index"""
-                                                    # deserialize this
-                self.verified_blocks[height_key] = json.loads(
-                                                        # get index 0
-                                                        next(iter(set_of_block_serialized_jsons)))
-            else:
-                previous_block_json = self.verified_blocks[height_key-1]
-                previous_block_hash = previous_block_json["hash"]
 
-                for current_serialized_block_json in set_of_block_serialized_jsons:
-                    # first deserialize it so we can use it as a dict again
-                    current_block_json = json.loads(current_serialized_block_json)
+                first_json_in_fisrt_block = json.loads(next(iter(set_of_block_serialized_jsons)))
+                print(f"--first_json_in_fisrt_block--\n\t{first_json_in_fisrt_block}")
+                print(f'{first_json_in_fisrt_block["hash"]}')
+
+                if first_json_in_fisrt_block["hash"][-8:] == "00000000":
+                    print("\t\twe have 0s")
+
                     m = hashlib.sha256()
-                    m.update(previous_block_hash.encode())
-                    m.update(current_block_json["minedBy"].encode())
-                    for msg in current_block_json["messages"]:
+                    m.update(first_json_in_fisrt_block["minedBy"].encode())
+                    for msg in first_json_in_fisrt_block["messages"]:
                         m.update(msg.encode())
-                    m.update(int(current_block_json["timestamp"])
-                             .to_bytes(8, 'big'))
-                    m.update(current_block_json["nonce"].encode())
-                    if m.hexdigest() == current_block_json["hash"]:
-                        self.verified_blocks[height_key] = current_block_json
-                        break
+                    m.update(int(first_json_in_fisrt_block["timestamp"])
+                        .to_bytes(8, 'big'))
+                    m.update(first_json_in_fisrt_block["nonce"].encode())
+                    print("\t\t\t We digested it all")
+                    if m.hexdigest() != first_json_in_fisrt_block["hash"]:
+                        print("--VERIFIED_0--")
+                        self.verified_blocks[height_key] = first_json_in_fisrt_block
+                        print(f"\t{first_json_in_fisrt_block}")
+                    else:
+                        print("--UNABLE_VERIFIED_0--")
+                        print(f"\tWTF ROB")
+
+                        # deserialize this
+
+                        #TODO: add this later
+                        # # is it difficult enough? Do I have enough zeros?
+                        # if hash[-1 * DIFFICULTY:] != '0' * DIFFICULTY:
+                        #     print("Block was not difficult enough: {}".format(hash))
+                else:
+                    print("\t\twe DONT have 0s")
+
+            else:
+                pass
+            #     if self.verified_blocks and self.verified_blocks.get(height_key-1):
+            #         previous_block_json = self.verified_blocks.get(height_key-1)
+            #         previous_block_hash = previous_block_json["hash"]
+            #
+            #         for current_serialized_block_json in set_of_block_serialized_jsons:
+            #             # first deserialize it so we can use it as a dict again
+            #             current_block_json = json.loads(current_serialized_block_json)
+            #             m = hashlib.sha256()
+            #             m.update(previous_block_hash.encode())
+            #             m.update(current_block_json["minedBy"].encode())
+            #             for msg in current_block_json["messages"]:
+            #                 m.update(msg.encode())
+            #             m.update(int(current_block_json["timestamp"])
+            #                      .to_bytes(8, 'big'))
+            #             m.update(current_block_json["nonce"].encode())
+            #             if m.hexdigest() == current_block_json["hash"]:
+            #                 self.verified_blocks[height_key] = current_block_json
+            #                 break
+            #     else:
+            #         print("I dont have the previous blocks cant verify")
+
+    ## debug method
+    def check_verified_blocks(self):
+        if len(self.verified_blocks ) != 0:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_BLOCK_CHAIN--\n\t{self.verified_blocks}")
+        else:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_BLOCK_CHAIN--\n\t NONE")
+    ## debug method
+
 # BLOCK ----------------------------------------------------------------------------------------------------------------
 
 def validate_msg(addr, msg):
@@ -352,7 +396,31 @@ def stat_msg_valid(msg):
     except (ValueError, TypeError):
         return False
 
+def verify_block(previous_hash, current_block_json, difficulty=8):
+    try:
+        hashBase = hashlib.sha256()
+        hashBase.update(previous_hash.encode())
+        hashBase.update(current_block_json['minedBy'].encode())
+        for message in current_block_json['messages']:
+            hashBase.update(message.encode())
+        hashBase.update(current_block_json['time'].to_bytes(8, 'big'))
+        hashBase.update(current_block_json['nonce'].encode())
+        calculated_hash = hashBase.hexdigest()
+        if calculated_hash[-difficulty:] != '0' * difficulty:
+            print(f"--DIFFICULY_NO_GOOD--\n\t{calculated_hash}")
+            return False
+        if calculated_hash != current_block_json['hash']:
+            print(f"--HASH_NO_MATCH--\n\t{calculated_hash} != {current_block_json['hash']}")
+            return False
 
+        return True
+
+    except KeyError as e:
+        print(f"Missing key in current_block: {e}")
+        return False
+    except Exception as ex:
+        print(f"Error during block verification: {ex}")
+        return False
 
 
 
