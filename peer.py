@@ -1,8 +1,6 @@
 import hashlib
 import socket
 import json
-from symbol import pass_stmt
-
 
 class Peer:
     def __init__(self, port, name, gossip_id):
