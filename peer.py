@@ -1,6 +1,7 @@
 import hashlib
 import socket
 import json
+from symbol import pass_stmt
 
 
 class Peer:
@@ -298,34 +299,26 @@ class Peer:
         print("I AM NOW VERIFYING")
         for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
             if height_key == 0:
-
-                first_json_in_fisrt_block = json.loads(next(iter(set_of_block_serialized_jsons)))
-                print(f"--first_json_in_fisrt_block--\n\t{first_json_in_fisrt_block}")
-                verification("", first_json_in_fisrt_block, 8)
-
-
+                print("--0_VERIFICATION--")
+                for serialized_json_block in set_of_block_serialized_jsons:
+                    json_block = json.loads(serialized_json_block)
+                    if verification("", json_block, 8):
+                        self.verified_blocks[height_key] = json_block
+                        print(f"--VERIFIED_BLOCK--\n\t{self.verified_blocks[height_key]}")
+                        break
             else:
-                pass
-            #     if self.verified_blocks and self.verified_blocks.get(height_key-1):
-            #         previous_block_json = self.verified_blocks.get(height_key-1)
-            #         previous_block_hash = previous_block_json["hash"]
-            #
-            #         for current_serialized_block_json in set_of_block_serialized_jsons:
-            #             # first deserialize it so we can use it as a dict again
-            #             current_block_json = json.loads(current_serialized_block_json)
-            #             m = hashlib.sha256()
-            #             m.update(previous_block_hash.encode())
-            #             m.update(current_block_json["minedBy"].encode())
-            #             for msg in current_block_json["messages"]:
-            #                 m.update(msg.encode())
-            #             m.update(int(current_block_json["timestamp"])
-            #                      .to_bytes(8, 'big'))
-            #             m.update(current_block_json["nonce"].encode())
-            #             if m.hexdigest() == current_block_json["hash"]:
-            #                 self.verified_blocks[height_key] = current_block_json
-            #                 break
-            #     else:
-            #         print("I dont have the previous blocks cant verify")
+                print("--Non0_VERIFICATION--")
+                prev_json_block = self.verified_blocks.get(height_key-1)
+                if prev_json_block:
+                    prev_json_block_hash = prev_json_block["hash"]
+                    for serialized_json_block in set_of_block_serialized_jsons:
+                        json_block = json.loads(serialized_json_block)
+                        if verification(prev_json_block_hash, json_block, 8):
+                            self.verified_blocks[height_key] = json_block
+                            print(f"--VERIFIED_BLOCK--\n\t{self.verified_blocks[height_key]}")
+                            break
+                else:
+                    print("i aint got the prev chief")
 
     ## debug method
     def check_verified_blocks(self):
