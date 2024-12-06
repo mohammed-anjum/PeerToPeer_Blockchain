@@ -1,6 +1,8 @@
 import hashlib
 import socket
 import json
+from distutils.command.config import config
+
 
 class Peer:
     def __init__(self, port, name, gossip_id):
@@ -240,7 +242,7 @@ class Peer:
         try:
             self.socket.sendto(data, (host, port))
             self.requested_block_heights.add(block_height)  # adding heights to `set` to avoid dups
-            # print(f"--GET_BLOCK_SENT--\n\tfor the height {block_height}\n\tto {host}:{port}\n")
+            # print(f"\t--GET_BLOCK_SENT--\n\t\tfor the height {block_height}\n\tto {host}:{port}\n")
         except Exception as e:
             print(f"--ERROR_GET_BLOCK_REQ--\n\t{e}")
 
@@ -252,8 +254,12 @@ class Peer:
             host_port_set = self.received_stats[self.consensus_key]
 
             for block_height in range(consensus_height):
+                # TODO: next step here
                 # if key not in verified_blocks
+                # print(f"--GET_BLOCK_SENT-- for {block_height}")
+                # print(f"\t\t{', '.join(self.verified_blocks.keys())}")
                 if block_height not in self.verified_blocks:
+                    # print("\t\t\tits NOT IN")
                     for host, port in host_port_set:
                         self.send_get_block(host, port, block_height)
 
@@ -295,29 +301,41 @@ class Peer:
 
     def verify_block(self):
         print("I AM NOW VERIFYING")
-        for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
-            if height_key == 0:
-                print("--0_VERIFICATION--")
-                for serialized_json_block in set_of_block_serialized_jsons:
-                    json_block = json.loads(serialized_json_block)
-                    if verification("", json_block, 8):
-                        self.verified_blocks[height_key] = json_block
-                        print(f"--VERIFIED_BLOCK--\n\t{self.verified_blocks[height_key]}")
-                        break
-            else:
-                print("--Non0_VERIFICATION--")
-                prev_json_block = self.verified_blocks.get(height_key-1)
-                if prev_json_block:
-                    prev_json_block_hash = prev_json_block["hash"]
-                    for serialized_json_block in set_of_block_serialized_jsons:
-                        json_block = json.loads(serialized_json_block)
-                        if verification(prev_json_block_hash, json_block, 8):
-                            self.verified_blocks[height_key] = json_block
-                            print(f"\t\t\t--VERIFIED_BLOCK--\n\t{height_key}")
-                            break
-                else:
-                    # print("i aint got the prev chief")
-                    pass
+        if len(self.block_tracker) == int(self.consensus_key[0]):
+            print("I AM NOW VERIFYING - NOW THAT I HAVE ALL")
+            for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
+                if height_key not in self.verified_blocks:
+                    if height_key == 0:
+                        print("--0_VERIFICATION--")
+                        for serialized_json_block in set_of_block_serialized_jsons:
+                            json_block = json.loads(serialized_json_block)
+                            print(f"\t this be a 0ish block{json_block}")
+                            if verification("", json_block, 8):
+                                self.verified_blocks[height_key] = json_block
+                                print(f"--VERIFIED_BLOCK--\n\t{self.verified_blocks[height_key]}")
+                                break
+                            else:
+                                print("NOT VERIFIED 0")
+                                # do consensus again
+                    else:
+                        print("--Non0_VERIFICATION--")
+                        prev_json_block = self.verified_blocks.get(height_key-1)
+                        if prev_json_block:
+                            prev_json_block_hash = prev_json_block["hash"]
+                            for serialized_json_block in set_of_block_serialized_jsons:
+                                json_block = json.loads(serialized_json_block)
+                                if verification(prev_json_block_hash, json_block, 8):
+                                    self.verified_blocks[height_key] = json_block
+                                    print(f"\t\t\t--VERIFIED_BLOCK--\n\t{height_key}")
+                                    break
+                                else:
+                                    print("NOT VERIFIED Non0")
+                                    # do consensus again
+                        else:
+                            # print("i aint got the prev yet chief")
+                            pass
+        else:
+            print("I STILL DONT HAVE IT ALL")
 
     ## debug method
     def check_verified_blocks(self):
@@ -328,8 +346,6 @@ class Peer:
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_BLOCK_CHAIN--\n\t NONE")
-    ## debug method
-
 
 # BLOCK ----------------------------------------------------------------------------------------------------------------
 
