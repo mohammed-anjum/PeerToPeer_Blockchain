@@ -1,8 +1,6 @@
 import hashlib
-import ipaddress
 import socket
 import json
-from distutils.command.config import config
 
 
 class Peer:
@@ -88,7 +86,8 @@ class Peer:
                         msg = json.loads(data.decode('utf-8'))  # Decode JSON
                         self.handle_msg(addr, msg)  # Process the message
                     except json.JSONDecodeError as e:
-                        print(f"Invalid JSON received from {addr}: {data}. Error: {e}")
+                        # print(f"Invalid JSON received from {addr}: {data}. Error: {e}")
+                        pass
 
                 else:
                     print(f"--LISTENING--\n\t{addr}: \n\t\tNO DATA\n")
@@ -307,13 +306,14 @@ class Peer:
 
     def verify_blocks(self):
         """
-        Verifies blocks up to the consensus height. If a block fails verification, consensus is reinitiated.
+        Verifies blocks up to the consensus height. If a block fails verification,
+        consensus is reinitiated, and dictionaries are cleared to start over.
         """
         good_consensus = True  # Flag to track if the consensus remains valid
         print("--VERIFY_BLOCKS--")
 
         # If verification is not yet complete (verified blocks don't match the consensus height)
-        if self.consensus_key[0] != len(self.verified_blocks):
+        if self.consensus_key != -1 and (self.consensus_key[0] != len(self.verified_blocks)):
             # Check if we have all the blocks required for verification
             if len(self.block_tracker) == self.consensus_key[0]:
                 # Iterate over block heights in order
@@ -328,7 +328,8 @@ class Peer:
                         print(f"\tVERIFYING: {height_key}")
 
                         # Determine the previous hash
-                        prev_hash = "" if height_key == 0 else self.verified_blocks.get(height_key - 1, {}).get("hash","")
+                        prev_hash = "" if height_key == 0 else self.verified_blocks.get(height_key - 1, {}).get("hash",
+                                                                                                                "")
                         print(f"\t\tPREV_HASH: {prev_hash}")
 
                         # Ensure we have a valid previous hash
@@ -350,8 +351,6 @@ class Peer:
                                     # If block fails verification, mark consensus as bad
                                     print(f"\tNOT ADDED_TO_VERIFIED: DO_CONSENSUS")
                                     self.bad_consensus.append(self.consensus_key)
-                                    self.verified_blocks.clear()
-                                    self.block_tracker.clear()
                                     good_consensus = False
                                     break
                         else:
@@ -369,6 +368,79 @@ class Peer:
         else:
             # Verification already completed
             print("# Verification already done")
+
+        # Clear dictionaries if consensus is bad
+        if not good_consensus:
+            print("--CLEARING DICTIONARIES and CONSENSUS--")
+            self.consensus_key = (-1, "")
+            self.verified_blocks.clear()  # Clear all verified blocks
+            self.block_tracker.clear()  # Clear all block tracking data
+            print("\tverified_blocks and block_tracker have been cleared.")
+
+    # def verify_blocks(self):
+    #     """
+    #     Verifies blocks up to the consensus height. If a block fails verification, consensus is reinitiated.
+    #     """
+    #     good_consensus = True  # Flag to track if the consensus remains valid
+    #     print("--VERIFY_BLOCKS--")
+    #
+    #     # If verification is not yet complete (verified blocks don't match the consensus height)
+    #     if self.consensus_key[0] != len(self.verified_blocks):
+    #         # Check if we have all the blocks required for verification
+    #         if len(self.block_tracker) == self.consensus_key[0]:
+    #             # Iterate over block heights in order
+    #             for height_key, set_of_block_serialized_jsons in sorted(self.block_tracker.items()):
+    #                 # Stop verification if the consensus is already marked bad
+    #                 if not good_consensus:
+    #                     print("\tConsensus marked as bad. Stopping verification.")
+    #                     break
+    #
+    #                 # If the current block height hasn't been verified yet
+    #                 if height_key not in self.verified_blocks:
+    #                     print(f"\tVERIFYING: {height_key}")
+    #
+    #                     # Determine the previous hash
+    #                     prev_hash = "" if height_key == 0 else self.verified_blocks.get(height_key - 1, {}).get("hash","")
+    #                     print(f"\t\tPREV_HASH: {prev_hash}")
+    #
+    #                     # Ensure we have a valid previous hash
+    #                     if (height_key == 0 and prev_hash == "") or (height_key > 0 and prev_hash):
+    #                         print("\t\t\t# Loop through set_of_block_serialized_jsons")
+    #                         # Loop through candidate blocks at this height
+    #                         for serialized_json_block in set_of_block_serialized_jsons:
+    #                             # Deserialize the current block
+    #                             json_block = json.loads(serialized_json_block)
+    #                             print(f"\t\t\tJSON_BLOCK: {json_block}")
+    #
+    #                             # Attempt to verify the block
+    #                             if verification(prev_hash, json_block, 8):
+    #                                 # If verified, add to verified blocks
+    #                                 self.verified_blocks[height_key] = json_block
+    #                                 print(f"\tADDED_TO_VERIFIED: {self.verified_blocks[height_key].get('height')}")
+    #                                 break
+    #                             else:
+    #                                 # If block fails verification, mark consensus as bad
+    #                                 print(f"\tNOT ADDED_TO_VERIFIED: DO_CONSENSUS")
+    #                                 self.bad_consensus.append(self.consensus_key)
+    #                                 self.verified_blocks.clear()
+    #                                 self.block_tracker.clear()
+    #                                 good_consensus = False
+    #                                 break
+    #                     else:
+    #                         # Missing previous hash; cannot proceed
+    #                         print(f"\tMISSING PREV_HASH FOR {height_key}. Stopping verification.")
+    #                         good_consensus = False
+    #                         break
+    #                 else:
+    #                     # Block is already verified; skip it
+    #                     print(f"\tALREADY_VERIFIED: {self.verified_blocks[height_key].get('height')}")
+    #         else:
+    #             # Not all blocks are present in the tracker; cannot verify
+    #             print("# I don't have all blocks")
+    #             print(f"\t{len(self.block_tracker)}/{self.consensus_key[0]}")
+    #     else:
+    #         # Verification already completed
+    #         print("# Verification already done")
 
     # def verify_blocks(self):
     #     good_consensus = True
