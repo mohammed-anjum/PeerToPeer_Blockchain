@@ -1,21 +1,55 @@
+import hashlib
 import socket
 import json
+from linecache import cache
 from math import trunc
 
 
 class Peer:
-    def __init__(self, port, name, id):
+    def __init__(self, port, name, gossip_id):
         # Automatically pick up the current IP
         self.host = self.get_local_ip()
         self.port = port
         self.name = name
+        self.gossip_id = gossip_id
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.host, self.port))
         self.received_gossipers = {}
+        """
+        an object containing a tuple key with host and port arrays inside a set
+            {
+                [height0, hash0]: ([host1,port1], [host2,port2], [host3,port3])
+                [height1, hash1]: ([host1,port1], [host2,port2])
+            }
+        """
         self.received_stats = {}
-        self.id = id
+        """
+            we retain the result key of consensus 
+                and plug it back in `received_stats` to get the host_port sets 
+            [height, hash]
+        """
         self.consensus_key = (-1, "")
-        self.block_request = set() # holds all height levels
+        self.requested_block_heights = set()
+        """
+            the below will have the following format
+            {
+                0: (BLOCK_REPLY_1.json, BLOCK_REPLY_2.json, BLOCK_REPLY_3.json)
+                1: (BLOCK_REPLY_1.json, BLOCK_REPLY_2.json)
+                ...
+            }
+            once verified we push it to verified_blocks
+            and then sql it. think
+        """
+        self.block_tracker = {}
+        """
+            the below will have the following format
+            {
+                0: [BLOCK_REPLY_1.json]
+                1: [BLOCK_REPLY_2.json]
+                ...
+            }
+        """
+        self.verified_blocks = {}
         ### DO NOT REMOVE THIS PRINT
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
@@ -73,6 +107,10 @@ class Peer:
             self.add_stat(host, port, message)
         elif msg_type == "STATS":
             self.send_stat_reply(host, port)
+        elif msg_type == "GET_BLOCK":
+            pass
+        elif msg_type == "GET_BLOCK_REPLY":
+            self.add_block(host, port, message)
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--UNKNOWN--\n\t{addr}: {message}\n")
@@ -91,7 +129,7 @@ class Peer:
             "type": "GOSSIP",
             "host": self.host,
             "port": self.port,
-            "id": self.id,
+            "id": self.gossip_id,
             "name": self.name
         }
         # for now i have defaulted to silicon only
@@ -190,42 +228,83 @@ class Peer:
 # CONSENSUS ------------------------------------------------------------------------------------------------------------
 
 # BLOCK ----------------------------------------------------------------------------------------------------------------
-    def send_get_block(self, host, port, the_height):
+    def send_get_block(self, host, port, block_height):
         msg = {
             "type": "GET_BLOCK",
-            "height": the_height
+            "height": block_height
         }
         data = json.dumps(msg).encode('utf-8')
-        self.socket.sendto(data, (host, port))
-        self.block_request.add(the_height)
-        print(f"--GET_BLOCK_SENT--\n\tfor the height {the_height}\n\tto {host}:{port}\n")
-        # TODO: DELETE BELOW
-        # temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # temp_socket.setblocking(False)
-        # temp_socket.sendto(data, (host, port))
-        # return temp_socket
+        try:
+            self.socket.sendto(data, (host, port))
+            self.requested_block_heights.add(block_height) # adding heights to `set` to avoid dups
+            print(f"--GET_BLOCK_SENT--\n\tfor the height {block_height}\n\tto {host}:{port}\n")
+        except Exception as e:
+            print(f"--ERROR_GET_BLOCK_REQ--\n\t{e}")
 
-    # TODO
-    # def send_get_blocks(self):
-        # write loops here where you send send get block to everyone
+    def send_get_blocks(self):
+        if self.consensus_key != (-1, ""):
 
-    # TODO: DELETE BELOW
-    # def get_blocks(self):
-    #     if self.consensus_key != (-1, ""):
-    #
-    #         height = self.consensus_key[0]
-    #         last_block_hash = self.consensus_key[1]
-    #         host_port_set = self.received_stats[self.consensus_key]
-    #
-    #         found_blocks = set()
-    #
-    #         while len(found_blocks) < height:
-    #             socket_array = []
-    #             for host, port in host_port_set:
-    #                 for block_height in range(height):
-    #                     block_socket = self.send_get_block(host, port, block_height)
-    #                     socket_array.append((block_socket, block_height))
+            consensus_height = self.consensus_key[0]
+            last_block_hash = self.consensus_key[1]
+            host_port_set = self.received_stats[self.consensus_key]
 
+            for block_height in range(consensus_height):
+                # if key not in verified_blocks
+                if block_height not in self.verified_blocks:
+                    for host, port in host_port_set:
+                      self.send_get_block(host, port, block_height)
+
+    # listening for GET_BLOCK_REPLY
+    def add_block(self, host, port, message):
+        print(f"--GET_BLOCK_REPLY--\n\tfrom: {host}:{port}")
+        height_key = message["height"]
+        print(f"\t\tfor height{height_key}")
+        if height_key not in self.block_tracker:
+            self.block_tracker[height_key] = set()
+        # {height_key: (json1, json2 ...)}
+        self.block_tracker[height_key].add(message)
+        print(f"\tAdded block_json: {height_key}:{message}")
+
+    ## debug method
+    def check_block_tracker(self):
+        if len(self.block_tracker) != 0:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_BLOCK_TRACKER--\n\t{self.block_tracker}")
+        else:
+            ### DO NOT REMOVE THIS PRINT
+            print(f"--MY_BLOCK_TRACKER--\n\t NONE")
+    ## debug method
+
+    def verify_block(self):
+        """
+            block_tracker = the below will have the following format of the dict
+            {   0: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
+                1: (BLOCK_REPLY_1.json, BLOCK_REPLY_1.json)
+                ...}
+            once any json in value set is verified we keep that one
+            and remove the rest
+            and then sql it. think
+        """
+        for height_key, set_of_block_jsons in self.block_tracker.items():
+            if height_key == 0:
+                """ GENESIS BLOCK ~ we'll assume Rob is a good internet friend and just keep the 0 index"""
+                self.verified_blocks[height_key] = next(iter(set_of_block_jsons))
+            else:
+                previous_block_json = self.verified_blocks[height_key-1]
+                previous_block_hash = previous_block_json["hash"]
+
+                for current_block_json in set_of_block_jsons:
+                    m = hashlib.sha256()
+                    m.update(previous_block_hash.encode())
+                    m.update(current_block_json["minedBy"].encode())
+                    for msg in current_block_json["messages"]:
+                        m.update(msg.encode())
+                    m.update(int(current_block_json["timestamp"])
+                             .to_bytes(8, 'big'))
+                    m.update(current_block_json["nonce"].encode())
+                    if m.hexdigest() == current_block_json["hash"]:
+                        self.verified_blocks[height_key] = current_block_json
+                        break
 # BLOCK ----------------------------------------------------------------------------------------------------------------
 
 def validate_msg(addr, msg):
