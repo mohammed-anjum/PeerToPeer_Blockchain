@@ -21,7 +21,7 @@ def main():
     event_q.add_event(time.time() + 50, my_peer.send_get_blocks, None, 10)
     # # event_q.add_event(time.time() + 70, my_peer.check_block_tracker, None, 15) # debug
     event_q.add_event(time.time() + 65, my_peer.verify_block, None, 20)
-    # # event_q.add_event(time.time() + 82, my_peer.check_verified_blocks, None, 10)
+    event_q.add_event(time.time() + 82, my_peer.check_verified_blocks, None, 10)
     ###
 
     while True:

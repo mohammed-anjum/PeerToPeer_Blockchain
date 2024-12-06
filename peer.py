@@ -115,7 +115,7 @@ class Peer:
             # print(f"--UNKNOWN--\n\t{addr}: {message}\n")
             pass
 
-# GOSSIP ---------------------------------------------------------------------------------------------------------------
+    # GOSSIP ---------------------------------------------------------------------------------------------------------------
     def send_gossip(self):
         """Send a simple gossip msg TO PROF PEERS"""
         PROF_PEERS = [
@@ -149,7 +149,7 @@ class Peer:
         }
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
-        #print(f"--GOSSIP_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
+        # print(f"--GOSSIP_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
 
     def add_gossiper(self, host, port, message):
         # print(f"--GOSSIP_REPLY--\n\t{addr}: {message}\n")
@@ -168,10 +168,11 @@ class Peer:
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_GOSSIPERS--\n\t NO ONE")
-    ## debug method
-# GOSSIP ---------------------------------------------------------------------------------------------------------------
 
-# STAT -----------------------------------------------------------------------------------------------------------------
+    ## debug method
+    # GOSSIP ---------------------------------------------------------------------------------------------------------------
+
+    # STAT -----------------------------------------------------------------------------------------------------------------
     def send_stats(self, target_list):
         if len(target_list) != 0:
             for key, gossiper in target_list.items():
@@ -188,11 +189,11 @@ class Peer:
     # DNU
     def send_stat_reply(self, target_host, target_port):
         msg = {
-                "host": self.host,
-                "port": self.port,
-                "height": -1,
-                "hash": ""
-            }
+            "host": self.host,
+            "port": self.port,
+            "height": -1,
+            "hash": ""
+        }
         data = json.dumps(msg).encode('utf-8')
         self.socket.sendto(data, (target_host, target_port))
         # print(f"--STATS_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
@@ -217,18 +218,20 @@ class Peer:
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_STATS--\n\t NONE")
-    ## debug method
-# STAT -----------------------------------------------------------------------------------------------------------------
 
-# CONSENSUS ------------------------------------------------------------------------------------------------------------
+    ## debug method
+    # STAT -----------------------------------------------------------------------------------------------------------------
+
+    # CONSENSUS ------------------------------------------------------------------------------------------------------------
     def do_consensus(self, received_stats):
         print("--DOING_CONSENSUS--")
         highest_key = max(received_stats.keys(), key=lambda the_key: the_key[0])
         print(f"--THE_CONSENSUS--\n\t{highest_key}:{received_stats[highest_key]}\n")
         self.consensus_key = highest_key
-# CONSENSUS ------------------------------------------------------------------------------------------------------------
 
-# BLOCK ----------------------------------------------------------------------------------------------------------------
+    # CONSENSUS ------------------------------------------------------------------------------------------------------------
+
+    # BLOCK ----------------------------------------------------------------------------------------------------------------
     def send_get_block(self, host, port, block_height):
         msg = {
             "type": "GET_BLOCK",
@@ -237,7 +240,7 @@ class Peer:
         data = json.dumps(msg).encode('utf-8')
         try:
             self.socket.sendto(data, (host, port))
-            self.requested_block_heights.add(block_height) # adding heights to `set` to avoid dups
+            self.requested_block_heights.add(block_height)  # adding heights to `set` to avoid dups
             # print(f"--GET_BLOCK_SENT--\n\tfor the height {block_height}\n\tto {host}:{port}\n")
         except Exception as e:
             print(f"--ERROR_GET_BLOCK_REQ--\n\t{e}")
@@ -253,7 +256,7 @@ class Peer:
                 # if key not in verified_blocks
                 if block_height not in self.verified_blocks:
                     for host, port in host_port_set:
-                      self.send_get_block(host, port, block_height)
+                        self.send_get_block(host, port, block_height)
 
     # listening for GET_BLOCK_REPLY
     def add_block(self, host, port, message):
@@ -278,6 +281,7 @@ class Peer:
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_BLOCK_TRACKER--\n\t NONE")
+
     ## debug method
 
     """
@@ -289,6 +293,7 @@ class Peer:
         and remove the rest
         and then sql it. think
     """
+
     def verify_block(self):
         print("I AM NOW VERIFYING")
         for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
@@ -296,35 +301,8 @@ class Peer:
 
                 first_json_in_fisrt_block = json.loads(next(iter(set_of_block_serialized_jsons)))
                 print(f"--first_json_in_fisrt_block--\n\t{first_json_in_fisrt_block}")
-                print(f'{first_json_in_fisrt_block["hash"]}')
+                verification("", first_json_in_fisrt_block, 8)
 
-                if first_json_in_fisrt_block["hash"][-8:] == "00000000":
-                    print("\t\twe have 0s")
-
-                    m = hashlib.sha256()
-                    m.update(first_json_in_fisrt_block["minedBy"].encode())
-                    for msg in first_json_in_fisrt_block["messages"]:
-                        m.update(msg.encode())
-                    m.update(int(first_json_in_fisrt_block["timestamp"])
-                        .to_bytes(8, 'big'))
-                    m.update(first_json_in_fisrt_block["nonce"].encode())
-                    print("\t\t\t We digested it all")
-                    if m.hexdigest() != first_json_in_fisrt_block["hash"]:
-                        print("--VERIFIED_0--")
-                        self.verified_blocks[height_key] = first_json_in_fisrt_block
-                        print(f"\t{first_json_in_fisrt_block}")
-                    else:
-                        print("--UNABLE_VERIFIED_0--")
-                        print(f"\tWTF ROB")
-
-                        # deserialize this
-
-                        #TODO: add this later
-                        # # is it difficult enough? Do I have enough zeros?
-                        # if hash[-1 * DIFFICULTY:] != '0' * DIFFICULTY:
-                        #     print("Block was not difficult enough: {}".format(hash))
-                else:
-                    print("\t\twe DONT have 0s")
 
             else:
                 pass
@@ -351,13 +329,14 @@ class Peer:
 
     ## debug method
     def check_verified_blocks(self):
-        if len(self.verified_blocks ) != 0:
+        if len(self.verified_blocks) != 0:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_BLOCK_CHAIN--\n\t{self.verified_blocks}")
         else:
             ### DO NOT REMOVE THIS PRINT
             print(f"--MY_BLOCK_CHAIN--\n\t NONE")
     ## debug method
+
 
 # BLOCK ----------------------------------------------------------------------------------------------------------------
 
@@ -396,14 +375,15 @@ def stat_msg_valid(msg):
     except (ValueError, TypeError):
         return False
 
-def verify_block(previous_hash, current_block_json, difficulty=8):
+
+def verification(previous_hash, current_block_json, difficulty=8):
     try:
         hashBase = hashlib.sha256()
         hashBase.update(previous_hash.encode())
         hashBase.update(current_block_json['minedBy'].encode())
         for message in current_block_json['messages']:
             hashBase.update(message.encode())
-        hashBase.update(current_block_json['time'].to_bytes(8, 'big'))
+        hashBase.update(current_block_json['timestamp'].to_bytes(8, 'big'))
         hashBase.update(current_block_json['nonce'].encode())
         calculated_hash = hashBase.hexdigest()
         if calculated_hash[-difficulty:] != '0' * difficulty:
@@ -413,6 +393,7 @@ def verify_block(previous_hash, current_block_json, difficulty=8):
             print(f"--HASH_NO_MATCH--\n\t{calculated_hash} != {current_block_json['hash']}")
             return False
 
+        print(f"--HASH_OK--\n\t{calculated_hash}")
         return True
 
     except KeyError as e:
@@ -421,23 +402,6 @@ def verify_block(previous_hash, current_block_json, difficulty=8):
     except Exception as ex:
         print(f"Error during block verification: {ex}")
         return False
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 """
