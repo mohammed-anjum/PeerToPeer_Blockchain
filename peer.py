@@ -73,6 +73,7 @@ class Peer:
 
     def listen(self):
         """Listen for incoming msgs."""
+        ### DO NOT REMOVE THIS PRINT
         print("Listening for incoming messages...")
         while True:
             try:
@@ -103,10 +104,10 @@ class Peer:
         elif msg_type == "GOSSIP_REPLY":
             self.add_gossiper(host, port, message)
         elif msg_type == "STATS_REPLY":
-            print("\n!!! We got a STATS_REPLY !!!\n")
             self.add_stat(host, port, message)
         elif msg_type == "STATS":
-            self.send_stat_reply(host, port)
+            # self.send_stat_reply(host, port)
+            pass
         elif msg_type == "GET_BLOCK":
             pass
         elif msg_type == "GET_BLOCK_REPLY":
@@ -185,6 +186,7 @@ class Peer:
         self.socket.sendto(data, (target_host, target_port))
         # print(f"--STATS_SENT--\n\tto {target_host}:{target_port}\n")
 
+    # DNU
     def send_stat_reply(self, target_host, target_port):
         msg = {
                 "host": self.host,
@@ -206,7 +208,7 @@ class Peer:
                 self.received_stats[the_key] = set()
             self.received_stats[the_key].add((host, port))
 
-            print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
+            # print(f"--ADDED_STAT--\n\tfor {host}:{port}\n")
 
     ## debug method
     def check_stats(self):
@@ -237,7 +239,7 @@ class Peer:
         try:
             self.socket.sendto(data, (host, port))
             self.requested_block_heights.add(block_height) # adding heights to `set` to avoid dups
-            print(f"--GET_BLOCK_SENT--\n\tfor the height {block_height}\n\tto {host}:{port}\n")
+            # print(f"--GET_BLOCK_SENT--\n\tfor the height {block_height}\n\tto {host}:{port}\n")
         except Exception as e:
             print(f"--ERROR_GET_BLOCK_REQ--\n\t{e}")
 
@@ -260,10 +262,14 @@ class Peer:
         height_key = message["height"]
         print(f"\t\tfor height{height_key}")
         if height_key not in self.block_tracker:
+            print(f"\t\t\t{height_key} not in self.block_tracker")
             self.block_tracker[height_key] = set()
+            print(f"\t\t\t\t{height_key} > set made")
         # {height_key: (json1, json2 ...)}
-        self.block_tracker[height_key].add(message)
-        print(f"\tAdded block_json: {height_key}:{message}")
+        # here might be the error ChatGPT, what do i do? Do sets not like json messages?
+        # self.block_tracker[height_key].add(message)
+        self.block_tracker[height_key].add(json.dumps(message, sort_keys=True))
+        print(f" === Added block_json: {height_key}:{message}")
 
     ## debug method
     def check_block_tracker(self):
@@ -275,6 +281,7 @@ class Peer:
             print(f"--MY_BLOCK_TRACKER--\n\t NONE")
     ## debug method
 
+
     def verify_block(self):
         """
             block_tracker = the below will have the following format of the dict
@@ -285,15 +292,20 @@ class Peer:
             and remove the rest
             and then sql it. think
         """
-        for height_key, set_of_block_jsons in self.block_tracker.items():
+        for height_key, set_of_block_serialized_jsons in self.block_tracker.items():
             if height_key == 0:
                 """ GENESIS BLOCK ~ we'll assume Rob is a good internet friend and just keep the 0 index"""
-                self.verified_blocks[height_key] = next(iter(set_of_block_jsons))
+                                                    # deserialize this
+                self.verified_blocks[height_key] = json.loads(
+                                                        # get index 0
+                                                        next(iter(set_of_block_serialized_jsons)))
             else:
                 previous_block_json = self.verified_blocks[height_key-1]
                 previous_block_hash = previous_block_json["hash"]
 
-                for current_block_json in set_of_block_jsons:
+                for current_serialized_block_json in set_of_block_serialized_jsons:
+                    # first deserialize it so we can use it as a dict again
+                    current_block_json = json.loads(current_serialized_block_json)
                     m = hashlib.sha256()
                     m.update(previous_block_hash.encode())
                     m.update(current_block_json["minedBy"].encode())
