@@ -49,6 +49,8 @@ class Peer:
             }
         """
         self.verified_blocks = {}
+        self.currently_verifying = False
+        self.good_chain = False
         ### DO NOT REMOVE THIS PRINT
         print(f"Peer started at {self.host}:{self.port}, The name: {name}")
 
@@ -107,10 +109,10 @@ class Peer:
         elif msg_type == "STATS_REPLY":
             self.add_stat(host, port, message)
         elif msg_type == "STATS":
-            # self.send_stat_reply(host, port)
+            self.send_stat_reply(host, port)
             pass
         elif msg_type == "GET_BLOCK":
-            pass
+            self.send_block_reply(host, port, message)
         elif msg_type == "GET_BLOCK_REPLY":
             self.add_block(host, port, message)
         else:
@@ -191,15 +193,16 @@ class Peer:
 
     # DNU
     def send_stat_reply(self, target_host, target_port):
-        msg = {
-            "host": self.host,
-            "port": self.port,
-            "height": -1,
-            "hash": ""
-        }
-        data = json.dumps(msg).encode('utf-8')
-        self.socket.sendto(data, (target_host, target_port))
-        # print(f"--STATS_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
+        if self.good_chain:
+            msg = {
+                "host": self.host,
+                "port": self.port,
+                "height": self.consensus_key[0],
+                "hash": self.consensus_key[1]
+            }
+            data = json.dumps(msg).encode('utf-8')
+            self.socket.sendto(data, (target_host, target_port))
+            # print(f"--STATS_REPLY_SENT--\n\tto {target_host}:{target_port}\n")
 
     def add_stat(self, host, port, message):
         if stat_msg_valid(message):
@@ -226,16 +229,29 @@ class Peer:
     # STAT -----------------------------------------------------------------------------------------------------------------
 
     # CONSENSUS ------------------------------------------------------------------------------------------------------------
-    #TODO: its already in self no need for arg
-    def do_consensus(self, received_stats):
-        print("--DOING_CONSENSUS--")
-
-        filtered_received_stats = [key for key in received_stats.keys() if key not in self.bad_consensus]
-        if filtered_received_stats:
-            highest_key = max(filtered_received_stats, key=lambda x: x[0])
-            # highest_key = max(filtered_received_stats.keys(), key=lambda the_key: the_key[0])
-            print(f"\t--THE_CONSENSUS--\n\t\t{highest_key}:{received_stats[highest_key]}\n")
-            self.consensus_key = highest_key
+    def do_consensus(self):
+        if self.currently_verifying:
+            print("--UNABLE TO DO CONSENSUS AS VERIFYING BLOCKS")
+        else:
+            print("--DOING_CONSENSUS--")
+            # print(f"We here{self.received_stats}")
+            filtered_received_stats = [key for key in self.received_stats.keys() if key not in self.bad_consensus]
+            if filtered_received_stats:
+                highest_height_last_hash_key = max(filtered_received_stats, key=lambda x: x[0])
+                # highest_height_last_hash_key = max(filtered_received_stats.keys(), key=lambda the_key: the_key[0])
+                print(f"\t--THE_CONSENSUS--\n\t\t{highest_height_last_hash_key}:{self.received_stats[highest_height_last_hash_key]}\n")
+                if self.good_chain:
+                    if highest_height_last_hash_key[0] > self.consensus_key[0]:
+                        print("--CLEARING DICTIONARIES and CONSENSUS--")
+                        self.good_chain = False
+                        self.verified_blocks.clear()  # Clear all verified blocks
+                        self.block_tracker.clear()  # Clear all block tracking data
+                        self.consensus_key = highest_height_last_hash_key
+                        print("\tverified_blocks and block_tracker have been cleared.")
+                    else:
+                        print("I dont care about lower or equal consensus")
+                else:
+                    self.consensus_key = highest_height_last_hash_key
     # CONSENSUS ------------------------------------------------------------------------------------------------------------
 
     # BLOCK ----------------------------------------------------------------------------------------------------------------
@@ -283,6 +299,14 @@ class Peer:
         # print(f" === Added block_json: {height_key}:{message}")
         print(f"***I have the following blocks\t\t{', '.join(self.block_tracker.keys())}")
 
+    def send_block_reply(self, target_host, target_port, message):
+        if self.good_chain:
+            the_height = message["height"]
+            if the_height in range(0, self.consensus_key[0]):
+                msg = self.verified_blocks[message["height"]]
+                data = json.dumps(msg).encode('utf-8')
+                self.socket.sendto(data, (target_host, target_port))
+
     ## debug method
     def check_block_tracker(self):
         if len(self.block_tracker) != 0:
@@ -316,6 +340,9 @@ class Peer:
         if self.consensus_key != -1 and (self.consensus_key[0] != len(self.verified_blocks)):
             # Check if we have all the blocks required for verification
             if len(self.block_tracker) == self.consensus_key[0]:
+
+                self.currently_verifying = True
+
                 # Iterate over block heights in order
                 for height_key, set_of_block_serialized_jsons in sorted(self.block_tracker.items()):
                     # Stop verification if the consensus is already marked bad
@@ -346,16 +373,22 @@ class Peer:
                                     # If verified, add to verified blocks
                                     self.verified_blocks[height_key] = json_block
                                     print(f"\tADDED_TO_VERIFIED: {self.verified_blocks[height_key].get('height')}")
+                                    if height_key == self.consensus_key[0] - 1:
+                                        self.good_chain = True
+                                        self.currently_verifying = False
+                                        print("# Verification already done")
                                     break
                                 else:
                                     # If block fails verification, mark consensus as bad
                                     print(f"\tNOT ADDED_TO_VERIFIED: DO_CONSENSUS")
+                                    self.currently_verifying = False
                                     self.bad_consensus.append(self.consensus_key)
                                     good_consensus = False
                                     break
                         else:
                             # Missing previous hash; cannot proceed
                             print(f"\tMISSING PREV_HASH FOR {height_key}. Stopping verification.")
+                            self.currently_verifying = False
                             good_consensus = False
                             break
                     else:
@@ -363,10 +396,13 @@ class Peer:
                         print(f"\tALREADY_VERIFIED: {self.verified_blocks[height_key].get('height')}")
             else:
                 # Not all blocks are present in the tracker; cannot verify
+                self.currently_verifying = False
                 print("# I don't have all blocks")
                 print(f"\t{len(self.block_tracker)}/{self.consensus_key[0]}")
         else:
             # Verification already completed
+            self.good_chain = True
+            self.currently_verifying = False
             print("# Verification already done")
 
         # Clear dictionaries if consensus is bad
@@ -376,6 +412,7 @@ class Peer:
             self.verified_blocks.clear()  # Clear all verified blocks
             self.block_tracker.clear()  # Clear all block tracking data
             print("\tverified_blocks and block_tracker have been cleared.")
+            self.do_consensus()
 
     # def verify_blocks(self):
     #     """
@@ -566,7 +603,7 @@ def stat_msg_valid(msg):
         if "height" not in msg or "hash" not in msg:
             return False
         # Validate hash: it must be a non-empty string and reasonably long
-        if not isinstance(msg["hash"], str) or len(msg["hash"]) < 10:
+        if not isinstance(msg["hash"], str) or len(msg["hash"]) < 10 or msg["hash"][-8:] != "0" * 8:
             return False
         int(msg["height"])
         return True
